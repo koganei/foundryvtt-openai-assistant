@@ -2,7 +2,7 @@
  * Create a custom config setting
  */
 export async function init() {
-    Hooks.on("init", async (data) => {
+    Hooks.on("init", async () => {
         await window.game.settings.register('foundryvtt-openai-assistant', 'OpenAIKey', {
             name: 'OpenAI API Key', // can also be an i18n key
             hint: 'API Key for OpenAI', // can also be an i18n key
