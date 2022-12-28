@@ -1,0 +1,25 @@
+{
+  "name": "foundryvtt-openai-assistant",
+  "version": "1.0.0",
+  "description": "Generate descriptions for attacks, spells and more using the OpenAI API",
+  "scripts": {
+    "build": "npm run webpack"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/koganei/foundryvtt-openai-assistant.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/koganei/foundryvtt-openai-assistant/issues"
+  },
+  "homepage": "https://github.com/koganei/foundryvtt-openai-assistant#readme",
+  "dependencies": {
+    "openai": "^3.1.0"
+  },
+  "devDependencies": {
+    "webpack": "^5.75.0",
+    "webpack-cli": "^5.0.1"
+  }
+}

@@ -13,6 +13,6 @@
     "verified": "9"
   },
   "scripts": [
-    "scripts/openai-assistant.js"
+    "dist/main.js"
   ]
 }
