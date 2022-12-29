@@ -27,32 +27,27 @@ export function init() {
 }
 
 function generateChatMessages(data, description, hitTargets, missTargets) {
-    ChatMessage.create({
-        speaker: ChatMessage.getSpeaker({ actor: game.actors.get(data.actor.data.name) }),
-        content: `<i>${description.description}</i>`,
-        type: 2
-    });
-
-    const attackerToken = canvas.tokens.get(data.tokenId);
-    canvas.hud.bubbles.say(attackerToken, description.attackerQuip)
-
-    const targetId = hitTargets.length ? hitTargets[0].data._id : missTargets[0].data._id;
-
-    const targetToken = canvas.tokens.get(targetId);
-    canvas.hud.bubbles.say(targetToken, description.targetQuip)
 
 
-  
+    if(game.settings.get('foundryvtt-openai-assistant', 'displayAttackDescription')) {
+        const whisper = game.settings.get('foundryvtt-openai-assistant', 'restrictAttackToGM') ? ChatMessage.getWhisperRecipients("gm"): undefined;
+        ChatMessage.create({
+            speaker: ChatMessage.getSpeaker({ actor: game.actors.get(data.actor.data.name) }),
+            content: `<i>${description.description}</i>`,
+            whisper,
+            type: 2
+        });
+    }
 
-    // ChatMessage.create({
-    //     speaker: ChatMessage.getSpeaker({ actor: game.actors.get(data.actor.data.name) }),
-    //     content: description.attackerQuip
-    // }, { chatBubble: true });
+    if(game.settings.get('foundryvtt-openai-assistant', 'displayAttackBubbles')) {
+        const attackerToken = canvas.tokens.get(data.tokenId);
+        canvas.hud.bubbles.say(attackerToken, description.attackerQuip);
 
-    // ChatMessage.create({
-    //     speaker: ChatMessage.getSpeaker({ actor: game.actors.get(hitTargets.length ? hitTargets[0].data.actorId : missTargets[0].data.actorId) }),
-    //     content: description.targetQuip
-    // }, { chatBubble: true });
+        const targetId = hitTargets.length ? hitTargets[0].data._id : missTargets[0].data._id;
+
+        const targetToken = canvas.tokens.get(targetId);
+        canvas.hud.bubbles.say(targetToken, description.targetQuip);
+    }
 }
 
 function getHitAndMissTargets(data) {
@@ -84,7 +79,7 @@ function getHitAndMissTargets(data) {
 }
 
 function configureOpenAI() {
-    const apiKey = window.game.settings.get('foundryvtt-openai-assistant', 'OpenAIKey');
+    const apiKey = game.settings.get('foundryvtt-openai-assistant', 'OpenAIKey');
     if(!apiKey) { return false; }
 
     const configuration = new Configuration({
@@ -109,10 +104,6 @@ async function generateAttackDescription({openai, weapon, character, enemy, will
         max_tokens: 200
     });
 
-
-    //     {        character: "Puppet Papa",        weapon: "Staff Bash",        hit: "The attack hits",        description: "Puppet Papa delivers a hard bash from his staff to the Werebear's head, stunning them.",        attackQuip: "I won't hold back!",        targetReply: "Ouch! That one hurt!"    }
-
-    console.log('completion', completion.data.choices[0].text);
     const result = JSON.parse(completion.data.choices[0].text.replace(/[\n]/g, ''));
     const description = result.description;
     const attackerQuip = result.attackerQuip;
@@ -131,6 +122,7 @@ function generatePrompt({weapon, character, enemy, willHit = true}) {
     [{
         "character": "${character}",
         "weapon": "Rapier",
+        "enemy": "${enemy}",
         "hit": "The attack hits",
         "description": "${character} plunges the rapier toward the ${enemy}'s throat, the blood gushes out onto the floor.",
         "attackerQuip": "Have at you!",
@@ -138,6 +130,7 @@ function generatePrompt({weapon, character, enemy, willHit = true}) {
     }, {
         "character": "${character}",
         "weapon": "Rapier",
+        "enemy": "${enemy}",
         "hit": "The attack hits",
         "description": "${character} stabs the rapier into the ${enemy}'s chest and into its heart. The life goes out of the ${enemy}'s orc eyes before crumbling.",
         "attackerQuip": "Take that!",
@@ -145,6 +138,7 @@ function generatePrompt({weapon, character, enemy, willHit = true}) {
     }, {
         "character": "${character}",
         "weapon": "Rapier",
+        "enemy": "${enemy}",
         "hit": "The attack misses",
         "description": "${character} plunges the rapier toward the ${enemy}'s throat, the ${enemy} forcefully pushes the weapon away.",
         "attackerQuip": "Come here you!",
@@ -152,6 +146,7 @@ function generatePrompt({weapon, character, enemy, willHit = true}) {
     }, {
         "character": "${character}",
         "weapon": "Rapier",
+        "enemy": "${enemy}",
         "hit": "The attack misses",
         "description": "${character} stabs the rapier into the ${enemy}'s chest. The ${enemy}'s armor blocks the hit and only leaves a scratch.",
         "attackerQuip": "You can't beat me",
@@ -159,6 +154,7 @@ function generatePrompt({weapon, character, enemy, willHit = true}) {
     }, {
         "character": "${character}",
         "weapon": "Bow",
+        "enemy": "${enemy}",
         "hit": "The attack misses",
         "description": "${character} shoots the bow at the ${enemy}'s knee but misses it by a foot.",
         "attackerQuip": "You're going down!",
@@ -166,6 +162,7 @@ function generatePrompt({weapon, character, enemy, willHit = true}) {
     }, {
         "character": "${character}",
         "weapon": "Bow",
+        "enemy": "${enemy}",
         "hit": "The attack misses",
         "description": "${character} shoots the bow at the ${enemy}'s head, but it ducks under the attack.",
         "attackerQuip": "Head shot!",
@@ -173,6 +170,7 @@ function generatePrompt({weapon, character, enemy, willHit = true}) {
     }, {
         "character": "${character}",
         "weapon": "${weapon}",
+        "enemy": "${enemy}",
         "hit": "${willHitText}",
         "description": "",
         "attackerQuip": "",
