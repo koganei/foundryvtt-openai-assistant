@@ -19,7 +19,9 @@ export function init() {
             weapon: data.item.data.name,
             character: data.actor.data.name,
             enemy: enemy,
-            willHit: willHit
+            willHit: willHit,
+            characterInfo: data.actor,
+            enemyInfo: hitTargets[0] || missTargets[0]
         });
     
         generateChatMessages(data, description, hitTargets, missTargets);
@@ -29,7 +31,7 @@ export function init() {
 function generateChatMessages(data, description, hitTargets, missTargets) {
 
 
-    if(game.settings.get('foundryvtt-openai-assistant', 'displayAttackDescription')) {
+    if(game.settings.get('foundryvtt-openai-assistant', 'displayAttackDescription') && shouldDisplay(game.settings.get('foundryvtt-openai-assistant', 'attackDescriptionRate'))) {
         const whisper = game.settings.get('foundryvtt-openai-assistant', 'restrictAttackToGM') ? ChatMessage.getWhisperRecipients("gm"): undefined;
         ChatMessage.create({
             speaker: ChatMessage.getSpeaker({ actor: game.actors.get(data.actor.data.name) }),
@@ -39,15 +41,31 @@ function generateChatMessages(data, description, hitTargets, missTargets) {
         });
     }
 
-    if(game.settings.get('foundryvtt-openai-assistant', 'displayAttackBubbles')) {
+    if(game.settings.get('foundryvtt-openai-assistant', 'displayAttackBubbles') && shouldDisplay(game.settings.get('foundryvtt-openai-assistant', 'attackBubblesRate'))) {
         const attackerToken = canvas.tokens.get(data.tokenId);
         canvas.hud.bubbles.say(attackerToken, description.attackerQuip);
 
         const targetId = hitTargets.length ? hitTargets[0].data._id : missTargets[0].data._id;
 
         const targetToken = canvas.tokens.get(targetId);
-        canvas.hud.bubbles.say(targetToken, description.targetQuip);
+        canvas.hud.bubbles.say(targetToken, description.enemyQuip);
+
+        console.log('======================= attack bubbles', {
+            attackerToken,
+            targetToken,
+            targetId
+        });
     }
+}
+
+function extractJSONStringFromText(text) {
+    const start = text.indexOf('{');
+    const end = text.lastIndexOf('}') + 1;
+    return text.substring(start, end);
+}
+
+function shouldDisplay(rate) {
+    return Math.floor(Math.random() * 100) <= rate;
 }
 
 function getHitAndMissTargets(data) {
@@ -96,29 +114,53 @@ function onNoApiKey() {
     }, 1);
 }
 
-async function generateAttackDescription({openai, weapon, character, enemy, willHit}) {
+async function generateAttackDescription({openai, weapon, character, enemy, willHit, characterInfo, enemyInfo}) {
     const completion = await openai.createCompletion({
         model: "text-davinci-003",
-        prompt: generatePrompt({weapon, character, enemy, willHit}),
+        prompt: generatePrompt({weapon, character, enemy, willHit, characterInfo, enemyInfo}),
         temperature: 0.9,
         max_tokens: 200
     });
 
-    const result = JSON.parse(completion.data.choices[0].text.replace(/[\n]/g, ''));
+    const result = JSON.parse(extractJSONStringFromText(completion.data.choices[0].text.replace(/[\n]/g, '')));
     const description = result.description;
     const attackerQuip = result.attackerQuip;
-    const targetQuip = result.targetQuip;
+    const enemyQuip = result.enemyQuip;
 
-  return ({ choices: completion.data, description, attackerQuip, targetQuip });
+  return ({ choices: completion.data, description, attackerQuip, enemyQuip });
 }
 
+function getCharacterDetails(characterInfo) {
+    return characterInfo?.data?.data?.details ||
+        characterInfo?.data?.document?._actor?.labels ||
+        {};
+}
 
-function generatePrompt({weapon, character, enemy, willHit = true}) {
+function generatePrompt({weapon, character, enemy, willHit = true, characterInfo = {}, enemyInfo = {}}) {
     const willHitText = willHit ? 'The attack hits' : 'The attack misses.';
 
-    return `Repeat the last item of the array adding a suggestion for a description of an attack for a weapon or spell in a dungeons and dragons 5th edition game in the "description" property. Whether the attack hits or misses is defined by the text in the "hit" property. The attack is not lethal. Also suggest a sentence or quip said by the attacking character in the "attackQuip" property, as well as a verbal reaction from the target in the "targetReply" property.
-            Make sure that the result is in a valid JSON format, repeating the last item of the array.
+    const characterDetails = getCharacterDetails(characterInfo);
+    const enemyDetails = getCharacterDetails(enemyInfo);
 
+    console.log({characterDetails, enemyDetails});
+
+    return `
+    Repeat the last item of the sample answers array adding a suggestion for a description of an attack for a weapon or spell in a dungeons and dragons 5th edition game in the "description" property. Whether the attack hits or misses is defined by the text in the "hit" property. The attack is not lethal. Also suggest a sentence or quip said by the attacking character in the "attackQuip" property, as well as a verbal reaction from the target in the "targetReply" property.
+    Make sure that your answer is in a valid JSON format, repeating the last item of the array with no extra text around it.
+
+    Information about the attacker:
+    {
+        "attacker": "${character}",
+        "details": "${JSON.stringify(characterDetails, null, 4)}"
+    }
+
+    Information about the enemy:
+    {
+        "enemy": "${enemy}",
+        "details": "${JSON.stringify(enemyDetails, null, 4)}"
+    }
+
+    Sample answers array:
     [{
         "character": "${character}",
         "weapon": "Rapier",
@@ -126,7 +168,7 @@ function generatePrompt({weapon, character, enemy, willHit = true}) {
         "hit": "The attack hits",
         "description": "${character} plunges the rapier toward the ${enemy}'s throat, the blood gushes out onto the floor.",
         "attackerQuip": "Have at you!",
-        "targetQuip": "You got me!"
+        "enemyQuip": "You got me!"
     }, {
         "character": "${character}",
         "weapon": "Rapier",
@@ -134,7 +176,7 @@ function generatePrompt({weapon, character, enemy, willHit = true}) {
         "hit": "The attack hits",
         "description": "${character} stabs the rapier into the ${enemy}'s chest and into its heart. The life goes out of the ${enemy}'s orc eyes before crumbling.",
         "attackerQuip": "Take that!",
-        "targetQuip": "Please... have mercy..."
+        "enemyQuip": "Please... have mercy..."
     }, {
         "character": "${character}",
         "weapon": "Rapier",
@@ -142,7 +184,7 @@ function generatePrompt({weapon, character, enemy, willHit = true}) {
         "hit": "The attack misses",
         "description": "${character} plunges the rapier toward the ${enemy}'s throat, the ${enemy} forcefully pushes the weapon away.",
         "attackerQuip": "Come here you!",
-        "targetQuip": "Hah, you missed!"
+        "enemyQuip": "Hah, you missed!"
     }, {
         "character": "${character}",
         "weapon": "Rapier",
@@ -150,7 +192,7 @@ function generatePrompt({weapon, character, enemy, willHit = true}) {
         "hit": "The attack misses",
         "description": "${character} stabs the rapier into the ${enemy}'s chest. The ${enemy}'s armor blocks the hit and only leaves a scratch.",
         "attackerQuip": "You can't beat me",
-        "targetQuip": "Better luck next time"
+        "enemyQuip": "Better luck next time"
     }, {
         "character": "${character}",
         "weapon": "Bow",
@@ -158,7 +200,7 @@ function generatePrompt({weapon, character, enemy, willHit = true}) {
         "hit": "The attack misses",
         "description": "${character} shoots the bow at the ${enemy}'s knee but misses it by a foot.",
         "attackerQuip": "You're going down!",
-        "targetQuip": "I'm over here!"
+        "enemyQuip": "I'm over here!"
     }, {
         "character": "${character}",
         "weapon": "Bow",
@@ -166,7 +208,7 @@ function generatePrompt({weapon, character, enemy, willHit = true}) {
         "hit": "The attack misses",
         "description": "${character} shoots the bow at the ${enemy}'s head, but it ducks under the attack.",
         "attackerQuip": "Head shot!",
-        "targetQuip": "Not on my watch!"
+        "enemyQuip": "Not on my watch!"
     }, {
         "character": "${character}",
         "weapon": "${weapon}",
@@ -174,7 +216,7 @@ function generatePrompt({weapon, character, enemy, willHit = true}) {
         "hit": "${willHitText}",
         "description": "",
         "attackerQuip": "",
-        "targetQuip": ""
+        "enemyQuip": ""
     }]`;
 }
 

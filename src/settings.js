@@ -10,9 +10,6 @@ export async function init() {
             config: true,       // false if you dont want it to show in module config
             type: String,       // Number, Boolean, String, or even a custom class or DataModel
             default: '',
-            onChange: value => { // value is the new value of the setting
-              console.log('value changed', value)
-            },
             filePicker: false,  // set true with a String `type` to use a file picker input,
             requiresReload: true, // when changing the setting, prompt the user to reload
           });
@@ -24,9 +21,6 @@ export async function init() {
             config: true,       // false if you dont want it to show in module config
             type: Boolean,       // Number, Boolean, String, or even a custom class or DataModel
             default: false,
-            onChange: value => { // value is the new value of the setting
-              console.log('value changed', value)
-            },
             filePicker: false,  // set true with a String `type` to use a file picker input,
             requiresReload: false, // when changing the setting, prompt the user to reload
           });
@@ -38,9 +32,6 @@ export async function init() {
             config: true,       // false if you dont want it to show in module config
             type: Boolean,       // Number, Boolean, String, or even a custom class or DataModel
             default: true,
-            onChange: value => { // value is the new value of the setting
-              console.log('value changed', value)
-            },
             filePicker: false,  // set true with a String `type` to use a file picker input,
             requiresReload: false, // when changing the setting, prompt the user to reload
           });
@@ -52,9 +43,28 @@ export async function init() {
             config: true,       // false if you dont want it to show in module config
             type: Boolean,       // Number, Boolean, String, or even a custom class or DataModel
             default: true,
-            onChange: value => { // value is the new value of the setting
-              console.log('value changed', value)
-            },
+            filePicker: false,  // set true with a String `type` to use a file picker input,
+            requiresReload: false, // when changing the setting, prompt the user to reload
+          });
+
+          await window.game.settings.register('foundryvtt-openai-assistant', 'attackDescriptionRate', {
+            name: 'Only show description for x% of attacks', // can also be an i18n key
+            hint: 'This will limit the number of times the description will display', // can also be an i18n key
+            scope: 'world',     // "world" = sync to db, "client" = local storage
+            config: true,       // false if you dont want it to show in module config
+            type: Number,       // Number, Boolean, String, or even a custom class or DataModel
+            default: 25,
+            filePicker: false,  // set true with a String `type` to use a file picker input,
+            requiresReload: false, // when changing the setting, prompt the user to reload
+          });
+
+          await window.game.settings.register('foundryvtt-openai-assistant', 'attackBubblesRate', {
+            name: 'Only show chat bubbles for x% of attacks', // can also be an i18n key
+            hint: 'This will limit the number of times the chat bubbles will display', // can also be an i18n key
+            scope: 'world',     // "world" = sync to db, "client" = local storage
+            config: true,       // false if you dont want it to show in module config
+            type: Number,       // Number, Boolean, String, or even a custom class or DataModel
+            default: 50,
             filePicker: false,  // set true with a String `type` to use a file picker input,
             requiresReload: false, // when changing the setting, prompt the user to reload
           });
